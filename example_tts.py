@@ -15,7 +15,7 @@ print(f"Using device: {device}")
 model = ChatterboxTTS.from_pretrained(device=device)
 
 text = "Tonight, our brave troubadour is poised for his grandest romantic gesture! <Gist> He's about to be utterly, spectacularly, and hilariously ghosted live, for the entire world to witness! A painful comedy!"
-wav = model.generate(text, )
+wav = model.generate(text)
 ta.save("test-1.wav", wav, model.sr)
 
 # # If you want to synthesize with a different voice, specify the audio prompt
