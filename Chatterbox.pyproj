@@ -131,6 +131,7 @@
     <Compile Include="src\chatterbox\models\s3tokenizer\s3tokenizer.py" />
     <Compile Include="src\chatterbox\models\s3tokenizer\__init__.py" />
     <Compile Include="src\chatterbox\models\t3\inference\alignment_stream_analyzer.py" />
+    <Compile Include="src\chatterbox\models\t3\inference\t3_hf_backend.py" />
     <Compile Include="src\chatterbox\models\t3\llama_configs.py" />
     <Compile Include="src\chatterbox\models\t3\modules\cond_enc.py" />
     <Compile Include="src\chatterbox\models\t3\modules\learned_pos_emb.py" />

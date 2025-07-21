@@ -1,5 +1,3 @@
-# chatterbox/models/t3/t3.py
-
 # Copyright (c) 2025 Resemble AI
 # MIT License
 import logging
@@ -46,6 +44,7 @@ class T3(nn.Module):
         self.cfg = LlamaConfig(**LLAMA_CONFIGS[hp.llama_config_name])
         self.tfmr = LlamaModel(self.cfg)
         self.dim = self.cfg.hidden_size
+        self.deepspeed_patch_applied = False
 
         # conditioning / embedding
         self.cond_enc = T3CondEnc(hp)
@@ -64,19 +63,6 @@ class T3(nn.Module):
         self.text_head = nn.Linear(self.cfg.hidden_size, hp.text_tokens_dict_size, bias=False)
         self.speech_head = nn.Linear(self.cfg.hidden_size, hp.speech_tokens_dict_size, bias=False)
         self.compiled = False
-
-        # In order to use the standard HF generate method, we need to extend some methods to inject our custom logic
-        # Note the llama-specific logic. Other tfmr types can be added later.
-        patched_model = T3HuggingfaceBackend(
-            config=self.cfg,
-            llama=self.tfmr,
-            speech_enc=self.speech_emb,
-            speech_head=self.speech_head,
-            alignment_stream_analyzer=None,
-        )
-        self.patched_model = patched_model
-        self.compiled = True
-
 
     @property
     def device(self):
@@ -259,6 +245,24 @@ class T3(nn.Module):
             cfg_weight=cfg_weight,
         )
 
+        # In order to use the standard HF generate method, we need to extend some methods to inject our custom logic
+        # Note the llama-specific logic. Other tfmr types can be added later.
+
+        self.compiled = False
+
+        # TODO? synchronize the expensive compile function
+        # with self.compile_lock:
+        if not self.compiled:
+            patched_model = T3HuggingfaceBackend(
+                config=self.cfg,
+                llama=self.tfmr,
+                speech_enc=self.speech_emb,
+                speech_head=self.speech_head,
+                alignment_stream_analyzer=None,
+            )
+            self.patched_model = patched_model
+            self.compiled = True
+
         inputs_embeds = embeds
         device = embeds.device
 
@@ -275,8 +279,8 @@ class T3(nn.Module):
             inputs_embeds=inputs_embeds,
             past_key_values=None,
             use_cache=True,
-            output_attentions=False,
-            output_hidden_states=False,
+            output_attentions=True,
+            output_hidden_states=True,
             return_dict=True,
         )
         # Initialize kv_cache with the full context.
@@ -335,8 +339,8 @@ class T3(nn.Module):
             output = self.patched_model(
                 inputs_embeds=next_token_embed,
                 past_key_values=past,
-                output_attentions=False,
-                output_hidden_states=False,
+                output_attentions=True,
+                output_hidden_states=True,
                 return_dict=True,
             )
             # Update the kv_cache.

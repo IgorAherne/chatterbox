@@ -1,5 +1,3 @@
-# chatterbox/models/t3/inference/t3_hf_backend.py
-
 from typing import Optional
 
 import torch
@@ -78,7 +76,7 @@ class T3HuggingfaceBackend(LlamaPreTrainedModel, GenerationMixin):
         past_key_values: Optional[torch.Tensor]=None,
         use_cache=True,
         output_attentions=False,
-        output_hidden_states=False,
+        output_hidden_states=True,
         return_dict=True,
     ):
         """
@@ -92,6 +90,7 @@ class T3HuggingfaceBackend(LlamaPreTrainedModel, GenerationMixin):
         has_cache = past_key_values is not None and len(past_key_values) > 0
         assert not (is_large_input and has_cache)
         assert return_dict
+        assert output_hidden_states
 
         tfmr_out = self.model(
             inputs_embeds=inputs_embeds,
@@ -101,10 +100,13 @@ class T3HuggingfaceBackend(LlamaPreTrainedModel, GenerationMixin):
             output_hidden_states=output_hidden_states,
             return_dict=True,
         )
-        hidden_states = tfmr_out.hidden_states[-1] if output_hidden_states else tfmr_out.last_hidden_state
+        hidden_states = tfmr_out.hidden_states[-1]  # (B, seq, dim)
 
         logits = self.speech_head(hidden_states)
         # assert inputs_embeds.size(0) == 1 # (disabled for CFG)
+
+        # NOTE: hallucination handler may modify logits to force emit an EOS token
+        # logits = self.alignment_stream_analyzer.step(logits)
 
         return CausalLMOutputWithCrossAttentions(
             logits=logits,
